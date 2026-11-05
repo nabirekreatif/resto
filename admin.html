@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Dasbor — Nabire Resto</title>
+    <link rel="preconnect" href="https://script.google.com" />
+    <link rel="preconnect" href="https://script.googleusercontent.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body>
+    <!-- ============ LOGIN ============ -->
+    <section class="auth" id="authView" hidden>
+      <form class="auth-card" id="loginForm" autocomplete="on">
+        <div class="auth-brand"><span class="brand-mark js-brand-mark"><i class="fa-solid fa-utensils"></i></span><div><div class="brand-name js-brand-name" style="color:var(--dark)">Nabire Resto</div><div class="brand-sub">Dasbor Pemilik</div></div></div>
+        <div class="demo-banner" id="demoBanner" hidden><i class="fa-solid fa-flask"></i><span>Mode contoh: backend belum dihubungkan. Klik <b>Masuk</b> untuk mencoba dasbor dengan data dummy.</span></div>
+        <h1>Selamat datang kembali</h1>
+        <p class="lead">Masuk untuk mengelola menu, pesanan, dan tampilan web.</p>
+        <div class="field"><label for="lgUser">Username</label><input class="input" id="lgUser" name="username" autocomplete="username" value="superadmin" required /></div>
+        <div class="field"><label for="lgPass">Password</label>
+          <div class="input-group"><input class="input" id="lgPass" name="password" type="password" autocomplete="current-password" required /><button type="button" class="btn btn-ghost" id="lgEye" aria-label="Tampilkan password"><i class="fa-solid fa-eye"></i></button></div>
+        </div>
+        <button class="btn btn-primary btn-block" id="lgBtn" type="submit"><i class="fa-solid fa-right-to-bracket"></i> Masuk</button>
+        <p class="hint" id="lgMsg" role="alert" style="color:var(--err);min-height:18px;margin-top:10px"></p>
+        <div class="help"><b>Lupa password superadmin?</b> Buka Apps Script → pilih fungsi <code>resetPasswordSuperadmin</code> → ▶ Jalankan → baca password sementara di <i>Log eksekusi</i>.</div>
+      </form>
+
+      <form class="auth-card" id="mustForm" hidden>
+        <div class="auth-brand"><span class="brand-mark"><i class="fa-solid fa-key"></i></span><div><div class="brand-name" style="color:var(--dark)">Buat password baru</div><div class="brand-sub">Wajib sekali</div></div></div>
+        <p class="lead">Anda masuk dengan password sementara. Buat password baru (minimal 10 karakter, kombinasi huruf & angka).</p>
+        <div class="field"><label for="mpOld">Password sementara</label><input class="input" id="mpOld" type="password" autocomplete="current-password" required /></div>
+        <div class="field"><label for="mpNew">Password baru</label><input class="input" id="mpNew" type="password" autocomplete="new-password" minlength="10" required /></div>
+        <div class="field"><label for="mpNew2">Ulangi password baru</label><input class="input" id="mpNew2" type="password" autocomplete="new-password" required /></div>
+        <button class="btn btn-primary btn-block" type="submit" id="mpBtn"><i class="fa-solid fa-check"></i> Simpan & Masuk</button>
+        <p class="hint" id="mpMsg" role="alert" style="color:var(--err);min-height:18px;margin-top:10px"></p>
+      </form>
+    </section>
+
+    <!-- ============ APP ============ -->
+    <div class="shell" id="appView" hidden>
+      <aside class="sidebar" id="sidebar" aria-label="Menu utama"></aside>
+      <div class="main">
+        <header class="topbar">
+          <div class="topbar-in">
+            <span class="tb-brand-m"><span class="brand-mark js-brand-mark" style="width:36px;height:36px;font-size:16px"><i class="fa-solid fa-utensils"></i></span></span>
+            <div class="tb-title"><h1 id="pageTitle">Ringkasan</h1><p id="pageSub"></p></div>
+            <span class="net-dot" id="netDot" title="Status koneksi"></span>
+            <a class="btn btn-ghost btn-sm" href="index.html" target="_blank" rel="noopener" title="Lihat web"><i class="fa-solid fa-arrow-up-right-from-square"></i><span class="hide-sm"> Lihat web</span></a>
+            <button class="avatar" id="avatarBtn" aria-label="Akun"></button>
+          </div>
+        </header>
+        <main class="content" id="content"></main>
+      </div>
+      <nav class="bnav" id="bnav" aria-label="Navigasi bawah"></nav>
+    </div>
+
+    <div id="layer"></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/demo-data.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/toko.js"></script>
+    <script src="js/admin.js"></script>
+  </body>
+</html>

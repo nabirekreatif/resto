@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="Nabire Resto — Sajian modern khas Papua Tengah. Pesan cepat, antar tepat." />
+    <title>Nabire Resto — Rasa Modern dari Jantung Papua</title>
+
+    <!-- Koneksi awal lebih cepat -->
+    <link rel="preconnect" href="https://script.google.com" />
+    <link rel="preconnect" href="https://script.googleusercontent.com" />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,500&family=Poppins:wght@400;500;600&family=Inter:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+
+    <!-- FontAwesome 6.4 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Leaflet 1.9.4 (peta lokasi pengiriman) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Lenis smooth scroll -->
+    <script defer src="https://unpkg.com/lenis@1.1.14/dist/lenis.min.js"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!-- Layar pembuka hanya pada kunjungan pertama (setelah itu tampil instan dari cache) -->
+    <div class="boot-loader hide" id="bootLoader" aria-hidden="true">
+      <div><div class="bl-mark"><i class="fa-solid fa-utensils"></i></div><p>Menyiapkan menu…</p></div>
+    </div>
+
+    <div x-data="restoApp()" x-init="init()" x-cloak>
+      <!-- ============ NAVBAR ============ -->
+      <nav class="nav" :class="{ 'scrolled': scrolled }" data-testid="navbar">
+        <div class="shell nav-inner">
+          <a href="#top" class="brand" data-testid="brand-logo">
+            <template x-if="s.logo_url"><img class="brand-logo-img" :src="s.logo_url" :alt="s.brand_name" /></template>
+            <template x-if="!s.logo_url"><span class="brand-mark"><i :class="s.brand_icon || 'fa-solid fa-utensils'"></i></span></template>
+            <span>
+              <span class="brand-name" x-text="s.brand_name"></span>
+              <span class="brand-sub" style="display:block" x-text="s.brand_sub"></span>
+            </span>
+          </a>
+          <div class="nav-links">
+            <a href="#menu" data-testid="nav-menu">Menu</a>
+            <a href="#reservasi" data-testid="nav-resv" x-show="on(s.reservasi_aktif)">Reservasi</a>
+            <a href="#cerita" data-testid="nav-story" x-show="on(s.show_cerita)">Cerita</a>
+            <a href="#filosofi" data-testid="nav-philosophy" x-show="on(s.show_filosofi)">Filosofi</a>
+            <a href="#" @click.prevent="aboutOpen = true" data-testid="nav-about">Tentang Kami</a>
+          </div>
+          <div class="nav-cta">
+            <span class="shop-status" :class="{ 'tutup': !toko.buka }" data-testid="shop-status" :title="toko.info"><span class="dot"></span><span x-text="toko.label"></span><span class="sub" x-text="toko.buka ? (toko.sampai ? '· s/d ' + toko.sampai : '') : (toko.bukaLagi ? '· buka ' + toko.bukaLagi : '')"></span></span>
+            <button class="icon-fab" @click="openMyOrders()" data-testid="my-orders-btn" aria-label="Pesanan saya"><i class="fa-solid fa-receipt"></i><span class="cart-badge" x-show="myActiveCount > 0" x-text="myActiveCount"></span></button>
+            <button class="cart-fab" @click="openCart()" data-testid="floating-cart-btn" aria-label="Keranjang">
+              <i class="fa-solid fa-bag-shopping"></i>
+              <span class="cart-badge" x-show="cartCount > 0" :class="{ 'pop': badgePop }" x-text="cartCount" data-testid="cart-badge"></span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- ============ HERO ============ -->
+      <header class="hero" id="top" data-testid="hero">
+        <div class="hero-bg">
+          <img :src="s.hero_image" :alt="'Hidangan ' + s.brand_name" id="heroImg" @error="imgFallback($event)" />
+        </div>
+        <div class="hero-grain"></div>
+        <div class="hero-inner shell reveal-on">
+          <div x-show="demo" class="demo-chip" data-testid="demo-chip"><i class="fa-solid fa-flask"></i> Mode contoh — menu & foto masih data dummy</div>
+          <span class="eyebrow hero-eyebrow" x-text="s.hero_eyebrow" style="display:flex"></span>
+          <h1>
+            <span class="line-mask"><span x-text="s.hero_line1"></span></span>
+            <span class="line-mask"><span><em x-text="s.hero_line2"></em></span></span>
+            <span class="line-mask"><span x-text="s.hero_line3"></span></span>
+          </h1>
+          <p class="hero-desc" x-text="s.hero_desc"></p>
+          <div class="hero-actions">
+            <a href="#menu" class="btn-primary" data-testid="hero-order-btn"><i class="fa-solid fa-bowl-food"></i> <span x-text="s.hero_btn1"></span></a>
+            <a href="#" class="btn-outline-light" @click.prevent="on(s.reservasi_aktif) ? openResv() : (aboutOpen = true)" data-testid="hero-btn2"><i :class="on(s.reservasi_aktif) ? 'fa-solid fa-calendar-check' : 'fa-solid fa-play'"></i> <span x-text="on(s.reservasi_aktif) ? 'Reservasi Meja' : s.hero_btn2"></span></a>
+          </div>
+          <div class="hero-meta">
+            <div><div class="num" x-text="s.meta1_num"></div><div class="lbl" x-text="s.meta1_lbl"></div></div>
+            <div><div class="num" x-text="s.meta2_num"></div><div class="lbl" x-text="s.meta2_lbl"></div></div>
+            <div><div class="num" x-text="s.meta3_num"></div><div class="lbl" x-text="s.meta3_lbl"></div></div>
+          </div>
+        </div>
+        <div class="scroll-hint"><span>Gulir</span><i class="fa-solid fa-arrow-down"></i></div>
+      </header>
+
+      <!-- ============ MARQUEE ============ -->
+      <div class="marquee" aria-hidden="true" x-show="on(s.show_marquee)">
+        <div class="marquee-track">
+          <template x-for="k in [0, 1]" :key="'mq' + k">
+            <span><template x-for="(t, ti) in marquee" :key="'mqi' + k + ti"><span><span x-text="t"></span><i class="fa-solid fa-star"></i></span></template></span>
+          </template>
+        </div>
+      </div>
+
+      <!-- ============ MENU ============ -->
+      <section class="sec-pad" id="menu" data-testid="menu-section">
+        <div class="shell">
+          <div class="sec-head reveal">
+            <span class="eyebrow" x-text="s.menu_eyebrow"></span>
+            <h2 class="sec-title" x-text="s.menu_title"></h2>
+            <p class="sec-desc" x-text="s.menu_desc"></p>
+          </div>
+          <div class="closed-banner" x-show="ready && !toko.bisaPesan" x-cloak data-testid="closed-banner">
+            <i class="big fa-solid fa-store-slash"></i>
+            <div class="t"><b x-text="toko.buka ? 'Pesanan online sudah ditutup' : 'Kami sedang tutup'"></b><span x-text="toko.info"></span></div>
+            <button class="btn-primary" x-show="on(s.reservasi_aktif)" @click="openResv()"><i class="fa-solid fa-calendar-check"></i> Reservasi meja</button>
+          </div>
+
+          <div class="menu-controls reveal">
+            <div class="cats">
+              <template x-for="c in allCategories" :key="c.id">
+                <button class="chip" :class="{ 'active': activeCat === c.id }" @click="setCat(c.id)" :data-testid="'cat-' + c.id">
+                  <i :class="c.icon"></i><span x-text="c.name"></span>
+                </button>
+              </template>
+            </div>
+            <div class="view-toggles">
+              <button class="tg" :class="{ 'active': viewMode === 'grid' && !swipeMode }" @click="setView('grid')" data-testid="view-grid" title="Tampilan Grid" aria-label="Tampilan grid"><i class="fa-solid fa-table-cells-large"></i></button>
+              <button class="tg" :class="{ 'active': viewMode === 'list' && !swipeMode }" @click="setView('list')" data-testid="view-list" title="Tampilan List" aria-label="Tampilan daftar"><i class="fa-solid fa-list"></i></button>
+              <span class="tg-sep"></span>
+              <button class="tg" :class="{ 'active': swipeMode }" @click="toggleSwipe()" data-testid="view-swipe" title="Mode Geser" aria-label="Mode geser"><i class="fa-solid fa-arrows-left-right"></i></button>
+            </div>
+          </div>
+
+          <!-- GRID / LIST -->
+          <div x-show="!swipeMode" class="menu-grid" :data-view-mode="viewMode" data-testid="menu-grid">
+            <template x-for="item in filteredMenu" :key="item.id">
+              <article class="menu-card" :class="{ 'habis': !toko.bisaPesan }" :data-testid="'menu-card-' + item.id">
+                <div class="card-media">
+                  <img :src="item.img" :alt="item.name" loading="lazy" @error="imgFallback($event)" />
+                  <span class="card-tag" x-show="item.tag" x-text="item.tag"></span>
+                  <button class="card-fav" :class="{ 'on': favs.includes(item.id) }" @click="toggleFav(item.id)" :data-testid="'fav-' + item.id" aria-label="Favorit"><i class="fa-solid fa-heart"></i></button>
+                </div>
+                <div class="card-body">
+                  <div class="card-name" x-text="item.name"></div>
+                  <p class="card-desc" x-text="item.desc"></p>
+                  <div class="card-foot">
+                    <div class="card-price"><small x-show="hasOptions(item)">Mulai</small>Rp <span x-text="fmt(item.price)"></span></div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn-add" @click="openAdd(item)" :disabled="!toko.bisaPesan" :data-testid="'add-' + item.id" aria-label="Tambah ke keranjang"><i class="fa-solid fa-plus"></i><span class="lbl">Keranjang</span></button>
+                    <button class="btn-order" @click="openQuick(item)" :disabled="!toko.bisaPesan" :data-testid="'order-' + item.id"><i class="fa-solid fa-bolt"></i> <span x-text="toko.bisaPesan ? 'Pesan' : 'Tutup'"></span></button>
+                  </div>
+                </div>
+              </article>
+            </template>
+            <div class="empty-menu" x-show="ready && filteredMenu.length === 0" style="grid-column:1/-1"><i class="fa-solid fa-bowl-rice"></i>Belum ada menu di kategori ini.</div>
+          </div>
+
+          <!-- SWIPE -->
+          <div x-show="swipeMode" x-cloak>
+            <div class="menu-grid-swipe" @scroll.debounce.60ms="onSwipeScroll($event)" x-ref="swipeTrack" data-testid="menu-swipe">
+              <template x-for="item in filteredMenu" :key="'sw-' + item.id">
+              <article class="menu-card" :class="{ 'habis': !toko.bisaPesan }" :data-testid="'sw-card-' + item.id">
+                <div class="card-media">
+                  <img :src="item.img" :alt="item.name" loading="lazy" @error="imgFallback($event)" />
+                  <span class="card-tag" x-show="item.tag" x-text="item.tag"></span>
+                  
+                </div>
+                <div class="card-body">
+                  <div class="card-name" x-text="item.name"></div>
+                  <p class="card-desc" x-text="item.desc"></p>
+                  <div class="card-foot">
+                    <div class="card-price"><small x-show="hasOptions(item)">Mulai</small>Rp <span x-text="fmt(item.price)"></span></div>
+                  </div>
+                  <div class="card-actions">
+                    <button class="btn-add" @click="openAdd(item)" :disabled="!toko.bisaPesan" :data-testid="'add-' + item.id" aria-label="Tambah ke keranjang"><i class="fa-solid fa-plus"></i><span class="lbl">Keranjang</span></button>
+                    <button class="btn-order" @click="openQuick(item)" :disabled="!toko.bisaPesan" :data-testid="'order-' + item.id"><i class="fa-solid fa-bolt"></i> <span x-text="toko.bisaPesan ? 'Pesan' : 'Tutup'"></span></button>
+                  </div>
+                </div>
+              </article>
+              </template>
+            </div>
+            <div class="swipe-extra">
+              <div class="swipe-dots">
+                <template x-for="(item, i) in filteredMenu" :key="'dot-' + i">
+                  <span class="dot" :class="{ 'on': i === swipeIndex }"></span>
+                </template>
+              </div>
+              <div class="swipe-hint"><span>Geser</span><i class="fa-solid fa-arrow-right-long"></i></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ RESERVASI ============ -->
+      <section class="resv sec-pad" id="reservasi" data-testid="resv-section" x-show="on(s.reservasi_aktif)">
+        <div class="shell">
+          <div class="resv-grid">
+            <div class="reveal">
+              <span class="eyebrow">Reservasi Meja</span>
+              <h2 class="sec-title">Pesan Meja, Datang Langsung Duduk.</h2>
+              <p class="sec-desc">Untuk makan bersama keluarga, rapat kecil, atau perayaan. Pilih tanggal, jam, dan jumlah tamu — kami konfirmasi lewat WhatsApp.</p>
+              <div class="resv-perks">
+                <div><i class="fa-solid fa-calendar-check"></i> Bisa reservasi hingga <b x-text="(s.reservasi_hari_maks || 30) + ' hari'"></b>&nbsp;ke depan</div>
+                <div><i class="fa-solid fa-users"></i> Maksimal <b x-text="(s.reservasi_maks_orang || 20) + ' orang'"></b>&nbsp;per reservasi</div>
+                <div><i class="fa-brands fa-whatsapp"></i> Konfirmasi otomatis via WhatsApp</div>
+              </div>
+              <div style="margin-top:30px;display:flex;gap:12px;flex-wrap:wrap">
+                <button class="btn-primary" @click="openResv()" data-testid="resv-open"><i class="fa-solid fa-calendar-plus"></i> Reservasi Sekarang</button>
+                <button class="btn-soft" style="height:54px;border-radius:999px;padding:0 22px" @click="openMyOrders('resv')"><i class="fa-solid fa-magnifying-glass"></i> Cek reservasi saya</button>
+              </div>
+            </div>
+            <div class="hours-card reveal d1">
+              <h4>Jam Buka</h4>
+              <p style="color:rgba(255,255,255,.6);font-size:13px;margin-bottom:12px" x-text="toko.info"></p>
+              <template x-for="h in hoursList" :key="'h' + h.d">
+                <div class="hours-row" :class="{ 'today': h.today }"><span x-text="h.nama"></span><span x-text="h.jam"></span></div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MANIFESTO / FILOSOFI ============ -->
+      <section class="manifesto sec-pad" id="filosofi" data-testid="manifesto" x-show="on(s.show_filosofi)">
+        <div class="shell">
+          <div class="sec-head reveal">
+            <span class="eyebrow" x-text="s.filo_eyebrow"></span>
+            <h2 class="sec-title"><template x-for="(t, i) in split(s.filo_title)" :key="'ft' + i"><span><span x-text="t"></span><br x-show="i < split(s.filo_title).length - 1" /></span></template></h2>
+          </div>
+          <template x-for="n in [1, 2, 3]" :key="'filo' + n">
+            <div class="chapter reveal" x-show="s['filo' + n + '_title']">
+              <div class="chapter-num" x-text="'0' + n"></div>
+              <div class="chapter-title" x-text="s['filo' + n + '_title']"></div>
+              <p class="chapter-text" x-text="s['filo' + n + '_text']"></p>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- ============ CERITA / ABOUT ============ -->
+      <section class="sec-pad" id="cerita" data-testid="story-section" x-show="on(s.show_cerita)">
+        <div class="shell">
+          <div class="story-grid">
+            <div class="story-frames reveal">
+              <div class="frame-a"><img :src="s.story_img_a" :alt="'Dapur ' + s.brand_name" loading="lazy" @error="imgFallback($event)" /></div>
+              <div class="frame-b"><img :src="s.story_img_b" alt="Suasana resto" loading="lazy" @error="imgFallback($event)" /></div>
+              <div class="badge-float"><div class="b-num" x-text="s.story_badge_num"></div><div class="b-lbl" x-text="s.story_badge_lbl"></div></div>
+            </div>
+            <div class="reveal d1">
+              <span class="eyebrow" x-text="s.story_eyebrow"></span>
+              <h2 class="sec-title" x-text="s.story_title"></h2>
+              <p class="sec-desc" x-text="s.story_desc"></p>
+              <div class="stat-row">
+                <div class="stat"><div class="s-num" x-text="s.stat1_num"></div><div class="s-lbl" x-text="s.stat1_lbl"></div></div>
+                <div class="stat"><div class="s-num" x-text="s.stat2_num"></div><div class="s-lbl" x-text="s.stat2_lbl"></div></div>
+                <div class="stat"><div class="s-num" x-text="s.stat3_num"></div><div class="s-lbl" x-text="s.stat3_lbl"></div></div>
+              </div>
+              <div style="margin-top:32px"><button class="btn-primary" @click="aboutOpen = true" data-testid="story-about-btn"><i class="fa-solid fa-book-open"></i> Selengkapnya</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ FOOTER ============ -->
+      <footer class="footer" data-testid="footer">
+        <div class="shell">
+          <div class="footer-grid">
+            <div>
+              <a href="#top" class="brand">
+                <template x-if="s.logo_url"><img class="brand-logo-img" :src="s.logo_url" :alt="s.brand_name" /></template>
+                <template x-if="!s.logo_url"><span class="brand-mark"><i :class="s.brand_icon || 'fa-solid fa-utensils'"></i></span></template>
+                <span class="brand-name" x-text="s.brand_name"></span>
+              </a>
+              <p x-text="s.address + '. Buka setiap hari ' + s.hours + '.'"></p>
+              <div class="socials">
+                <a :href="s.instagram || '#'" target="_blank" rel="noopener" aria-label="Instagram" x-show="s.instagram"><i class="fa-brands fa-instagram"></i></a>
+                <a :href="'https://wa.me/' + s.wa_number" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+                <a :href="s.facebook || '#'" target="_blank" rel="noopener" aria-label="Facebook" x-show="s.facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                <a :href="s.tiktok || '#'" target="_blank" rel="noopener" aria-label="TikTok" x-show="s.tiktok"><i class="fa-brands fa-tiktok"></i></a>
+              </div>
+            </div>
+            <div>
+              <h6>Jelajah</h6>
+              <ul>
+                <li @click="scrollTo('#menu')"><i class="fa-solid fa-bowl-food"></i> Menu</li>
+                <li @click="scrollTo('#cerita')" x-show="on(s.show_cerita)"><i class="fa-solid fa-book"></i> Cerita</li>
+                <li @click="scrollTo('#filosofi')" x-show="on(s.show_filosofi)"><i class="fa-solid fa-leaf"></i> Filosofi</li>
+                <li @click="aboutOpen = true"><i class="fa-solid fa-circle-info"></i> Tentang Kami</li>
+              </ul>
+            </div>
+            <div>
+              <h6>Kontak</h6>
+              <ul>
+                <li><a :href="'https://wa.me/' + s.wa_number" target="_blank" rel="noopener" style="color:inherit"><i class="fa-solid fa-phone"></i> <span x-text="prettyPhone(s.wa_number)"></span></a></li>
+                <li x-show="s.email"><i class="fa-solid fa-envelope"></i> <span x-text="s.email"></span></li>
+                <li><i class="fa-solid fa-location-dot"></i> <span x-text="s.address"></span></li>
+                <li><i class="fa-solid fa-clock"></i> <span x-text="s.hours"></span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="foot-bottom">
+            <span><span x-text="'© ' + year + ' ' + s.brand_name + '. ' + s.footer_text"></span> <span data-nk-copy></span></span>
+            <span>Kebijakan Privasi · Syarat & Ketentuan · <a href="#key" class="lic-link" data-nk-license>Aktifkan lisensi</a></span>
+          </div>
+        </div>
+      </footer>
+
+      <!-- ============ STICKY CHECKOUT BAR ============ -->
+      <div class="checkout-bar" :class="{ 'show': cartCount > 0 && !anyModalOpen }" data-testid="checkout-bar">
+        <div class="checkout-inner">
+          <div class="ci-info">
+            <small><span x-text="cartCount"></span> item di keranjang</small>
+            <b>Rp <span x-text="fmt(cartTotal)"></span></b>
+          </div>
+          <button class="btn-checkout" @click="checkoutFromCart()" data-testid="checkout-btn"><i class="fa-solid fa-bag-shopping"></i> Lihat Keranjang</button>
+        </div>
+      </div>
+
+      <!-- ============ MODAL: ADD TO CART / PESAN CEPAT ============ -->
+      <template x-if="addOpen">
+        <div class="modal-overlay fade-enter" data-lenis-prevent @click.self="addOpen = false" data-testid="add-modal" role="dialog" aria-modal="true">
+          <div class="modal sheet-enter" x-show="addOpen">
+            <button class="modal-close" @click="addOpen = false" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-hero">
+              <img :src="current.img" :alt="current.name" @error="imgFallback($event)" />
+              <div class="mh-title"><h3 x-text="current.name"></h3></div>
+            </div>
+            <div class="modal-body">
+              <p class="modal-desc" x-text="current.desc"></p>
+
+              <template x-if="current.variations && current.variations.length">
+                <div class="opt-group">
+                  <h5>Pilih Ukuran <span>Wajib · pilih 1</span></h5>
+                  <template x-for="(v, vi) in current.variations" :key="'v'+vi">
+                    <div class="opt" :class="{ 'selected': selVar === vi }" @click="selVar = vi">
+                      <div class="opt-left">
+                        <span class="opt-check opt-radio"><i class="fa-solid fa-circle" style="font-size:8px"></i></span>
+                        <span class="opt-name" x-text="v.name"></span>
+                      </div>
+                      <span class="opt-price" x-text="v.price > 0 ? '+ Rp ' + fmt(v.price) : 'Termasuk'"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <template x-if="current.addons && current.addons.length">
+                <div class="opt-group">
+                  <h5>Tambahan <span>Opsional</span></h5>
+                  <template x-for="(a, ai) in current.addons" :key="'a'+ai">
+                    <div class="opt" :class="{ 'selected': selAddons.includes(ai) }" @click="toggleAddon(ai)">
+                      <div class="opt-left">
+                        <span class="opt-check"><i class="fa-solid fa-check"></i></span>
+                        <span class="opt-name" x-text="a.name"></span>
+                      </div>
+                      <span class="opt-price" x-text="'+ Rp ' + fmt(a.price)"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <div class="field">
+                <label for="addNote">Catatan untuk dapur</label>
+                <textarea id="addNote" rows="2" placeholder="cth: tidak pedas, tanpa bawang..." x-model="note" data-testid="add-note"></textarea>
+              </div>
+
+              <div class="qty-row">
+                <span style="font-weight:600;color:var(--dark)">Jumlah</span>
+                <div class="qty">
+                  <button @click="qty = Math.max(1, qty - 1)" data-testid="qty-minus" aria-label="Kurangi"><i class="fa-solid fa-minus"></i></button>
+                  <span x-text="qty" data-testid="qty-value"></span>
+                  <button @click="qty++" data-testid="qty-plus" aria-label="Tambah"><i class="fa-solid fa-plus"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="mf-total"><small>Subtotal</small><b>Rp <span x-text="fmt(currentUnitPrice * qty)"></span></b></div>
+              <button class="btn-primary btn-full" @click="confirmAdd()" data-testid="confirm-add">
+                <i :class="quickMode ? 'fa-solid fa-bolt' : 'fa-solid fa-bag-shopping'"></i> <span x-text="quickMode ? 'Lanjut Pesan' : 'Tambah ke Keranjang'"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ============ MODAL: CART REVIEW ============ -->
+      <template x-if="cartOpen">
+        <div class="modal-overlay fade-enter" data-lenis-prevent @click.self="cartOpen = false" data-testid="cart-modal" role="dialog" aria-modal="true">
+          <div class="modal sheet-enter">
+            <div class="modal-drag"></div>
+            <button class="modal-close" @click="cartOpen = false" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-body">
+              <h3 class="modal-title">Keranjang Anda</h3>
+              <template x-if="cart.length === 0">
+                <div class="empty-cart"><i class="fa-solid fa-basket-shopping"></i><p>Keranjang masih kosong. Yuk pilih menu favoritmu!</p></div>
+              </template>
+              <template x-for="(line, li) in cart" :key="'cl'+li">
+                <div class="cart-line">
+                  <img :src="line.img" :alt="line.name" @error="imgFallback($event)" />
+                  <div class="cl-main">
+                    <div class="cl-name" x-text="line.name"></div>
+                    <div class="cl-meta" x-text="line.variationName + (line.addonNames ? ' · ' + line.addonNames : '')"></div>
+                    <div class="cl-meta" x-show="line.note" x-text="'📝 ' + line.note"></div>
+                    <div style="font-weight:700;color:var(--dark);margin-top:4px">Rp <span x-text="fmt(line.unit * line.qty)"></span></div>
+                  </div>
+                  <div class="qty">
+                    <button @click="decLine(li)" aria-label="Kurangi"><i class="fa-solid fa-minus"></i></button>
+                    <span x-text="line.qty"></span>
+                    <button @click="incLine(li)" aria-label="Tambah"><i class="fa-solid fa-plus"></i></button>
+                  </div>
+                  <button class="cl-remove" @click="removeLine(li)" aria-label="Hapus"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+              </template>
+            </div>
+            <div class="modal-foot" x-show="cart.length > 0">
+              <div class="mf-total"><small>Total</small><b>Rp <span x-text="fmt(cartTotal)"></span></b></div>
+              <button class="btn-primary btn-full" @click="proceedCheckout()" data-testid="cart-checkout"><i class="fa-solid fa-arrow-right"></i> Lanjut Pesan</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ============ MODAL: CHECKOUT ============ -->
+      <template x-if="quickOpen">
+        <div class="modal-overlay fade-enter" data-lenis-prevent @click.self="closeQuick()" data-testid="quick-modal" role="dialog" aria-modal="true">
+          <div class="modal modal-wide sheet-enter" x-ref="ckModal">
+            <div class="modal-drag"></div>
+            <button class="modal-close" @click="closeQuick()" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-body">
+              <span class="eyebrow">Pesan Sekarang</span>
+              <h3 class="modal-title" style="margin-top:10px">Selesaikan Pesanan</h3>
+
+              <!-- 1. Item -->
+              <div class="ck-sec">
+                <div class="ck-h"><span class="n">1</span>Pesanan Anda <span class="opt" x-text="orderItems.length + ' menu'"></span></div>
+                <template x-for="(line, li) in orderItems" :key="'ck' + li">
+                  <div class="ck-line">
+                    <img :src="line.img" :alt="line.name" @error="imgFallback($event)" />
+                    <div class="m"><div class="nm" x-text="line.name"></div><div class="mt" x-text="[line.variationName, line.addonNames, line.note ? '📝 ' + line.note : ''].filter(Boolean).join(' · ')"></div><div class="pr">Rp <span x-text="fmt(line.unit * line.qty)"></span></div></div>
+                    <div class="qty sm"><button @click="ckDec(li)" aria-label="Kurangi"><i class="fa-solid fa-minus"></i></button><span x-text="line.qty"></span><button @click="ckInc(li)" aria-label="Tambah"><i class="fa-solid fa-plus"></i></button></div>
+                  </div>
+                </template>
+                <button class="btn-soft sm" style="margin-top:10px" @click="closeQuick(); scrollTo('#menu')"><i class="fa-solid fa-plus"></i> Tambah menu lain</button>
+              </div>
+
+              <!-- 2. Data pemesan -->
+              <div class="ck-sec">
+                <div class="ck-h"><span class="n">2</span>Data Pemesan</div>
+                <div class="field"><label for="ordName">Nama <span class="req">*</span></label>
+                  <input id="ordName" type="text" placeholder="Nama Anda" x-model="order.name" :class="{ 'err': ckErr.name }" data-testid="order-name" autocomplete="name" /></div>
+                <div class="field"><label for="ordPhone">No. WhatsApp <span class="req">*</span></label>
+                  <input id="ordPhone" type="tel" inputmode="tel" placeholder="cth: 0812 3456 7890" x-model="order.phone" :class="{ 'err': ckErr.phone }" data-testid="order-phone" autocomplete="tel" />
+                  <small class="hint">Untuk kabar status pesanan & lacak pesanan.</small></div>
+              </div>
+
+              <!-- 3. Layanan -->
+              <div class="ck-sec">
+                <div class="ck-h"><span class="n">3</span>Jenis Layanan</div>
+                <div class="service-tabs" style="margin-top:10px" :style="'grid-template-columns:repeat(' + services.length + ',1fr)'">
+                  <template x-for="sv in services" :key="sv.id">
+                    <div class="stab" :class="{ 'active': order.service === sv.id }" @click="setService(sv.id)" :data-testid="'svc-' + sv.id" role="button" tabindex="0" @keydown.enter="setService(sv.id)"><i :class="sv.icon"></i><div class="st-name" x-text="sv.name"></div></div>
+                  </template>
+                </div>
+
+                <!-- dine-in: meja -->
+                <div x-show="order.service === 'dinein'" data-testid="dinein-box">
+                  <div class="field" style="margin-bottom:0"><label>Pilih meja <span style="font-weight:400;color:#94a3b8">(opsional)</span></label></div>
+                  <div class="chip-row">
+                    <button class="pick" :class="{ 'on': !order.meja }" @click="order.meja = ''">Pilih di tempat</button>
+                    <template x-for="m in meja" :key="'mj' + m.nama">
+                      <button class="pick" :class="{ 'on': order.meja === m.nama }" @click="order.meja = m.nama" :data-testid="'meja-' + m.nama"><span x-text="m.nama"></span><small x-text="m.area + ' · ' + m.kapasitas + ' org'"></small></button>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- takeaway: waktu ambil -->
+                <div x-show="order.service === 'takeaway'" data-testid="takeaway-box">
+                  <div class="field"><label for="ordPick">Waktu ambil</label>
+                    <select id="ordPick" x-model="order.waktuAmbil" data-testid="order-pickup">
+                      <template x-for="w in pickupTimes" :key="'w' + w.v"><option :value="w.v" x-text="w.t"></option></template>
+                    </select></div>
+                </div>
+
+                <!-- delivery: peta + ongkir otomatis -->
+                <div x-show="order.service === 'delivery'" data-testid="delivery-box">
+                  <div class="map-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search" placeholder="Cari jalan / tempat (mis. Pasar Oyehe)" x-model="mapQ" @input.debounce.500ms="searchPlace()" @keydown.enter.prevent="searchPlace()" aria-label="Cari lokasi" />
+                    <div class="map-results" x-show="mapResults.length" @click.outside="mapResults = []">
+                      <template x-for="(p, pi) in mapResults" :key="'pr' + pi"><button @click="pickPlace(p)" x-text="p.display_name"></button></template>
+                    </div>
+                  </div>
+                  <div id="order-map" data-testid="order-map"></div>
+                  <p class="map-hint"><i class="fa-solid fa-hand-pointer"></i> Ketuk peta atau geser pin merah ke titik rumah Anda.</p>
+                  <div class="map-tools">
+                    <button class="map-btn" @click="useGPS()" data-testid="gps-btn"><i class="fa-solid fa-location-crosshairs"></i> Lokasi Saya</button>
+                    <button class="map-btn" @click="resetPin()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                  </div>
+                  <div class="field">
+                    <label for="ordAddr">Alamat lengkap / patokan <span class="req">*</span></label>
+                    <input id="ordAddr" type="text" placeholder="cth: Jl. Merdeka No. 5, depan masjid, pagar biru" x-model="order.address" :class="{ 'err': ckErr.address }" data-testid="order-address" />
+                  </div>
+                  <div class="ship-info" :class="{ 'warn': !!shipError, 'free': !shipError && shipFree }" data-testid="ship-info">
+                    <template x-if="!pinSet"><span><i class="fa-solid fa-location-dot" style="color:var(--accent)"></i> Tentukan titik lokasi untuk menghitung ongkir</span></template>
+                    <template x-if="pinSet && shipError"><span x-text="shipError"></span></template>
+                    <template x-if="pinSet && !shipError"><span style="display:flex;justify-content:space-between;width:100%;gap:10px"><span><i class="fa-solid fa-route" style="color:var(--accent)"></i> Jarak ±<b x-text="distanceKm.toFixed(1) + ' km'"></b></span><span>Ongkir <b x-text="shipFree ? 'GRATIS' : 'Rp ' + fmt(shippingFee)" data-testid="ship-fee"></b></span></span></template>
+                  </div>
+                  <p class="map-hint" x-show="Number(s.ongkir_gratis_min) > 0 && !shipFree" x-text="'Gratis ongkir untuk belanja min. Rp ' + fmt(s.ongkir_gratis_min)"></p>
+                  <p class="map-hint" style="color:#b91c1c" x-show="minOrderShort > 0" x-text="'Minimal belanja delivery Rp ' + fmt(s.min_order_delivery) + ' (kurang Rp ' + fmt(minOrderShort) + ')'"></p>
+                </div>
+              </div>
+
+              <!-- 4. Pembayaran -->
+              <div class="ck-sec">
+                <div class="ck-h"><span class="n">4</span>Pembayaran</div>
+                <div class="pay-grid" style="margin-top:10px">
+                  <template x-for="p in paymentsFor" :key="p.id">
+                    <div class="pay" :class="{ 'selected': order.pay === p.id }" @click="order.pay = p.id" :data-testid="'pay-' + p.id" role="button" tabindex="0" @keydown.enter="order.pay = p.id"><i :class="p.icon"></i><span class="p-name"><span x-text="p.name"></span><small x-text="p.sub"></small></span></div>
+                  </template>
+                </div>
+                <div x-show="order.pay === 'transfer'" data-testid="transfer-box">
+                  <template x-for="(r, ri) in rekening" :key="'rk' + ri">
+                    <div class="rek"><div class="bank" x-text="r.bank"></div><div class="m"><div class="no" x-text="r.nomor"></div><div class="an" x-text="'a.n. ' + r.nama"></div></div><button class="btn-soft sm" @click="copy(r.nomor)"><i class="fa-regular fa-copy"></i> Salin</button></div>
+                  </template>
+                  <div class="note-box" x-show="!rekening.length && s.info_transfer"><i class="fa-solid fa-building-columns"></i><span x-text="s.info_transfer"></span></div>
+                </div>
+                <div x-show="order.pay === 'qris'" data-testid="qris-box">
+                  <div class="qris-box">
+                    <template x-if="s.qris_image"><div><img :src="s.qris_image" alt="QRIS" /><a class="btn-soft sm" style="margin-top:10px" :href="s.qris_image" target="_blank" rel="noopener"><i class="fa-solid fa-download"></i> Buka / simpan QRIS</a></div></template>
+                    <template x-if="!s.qris_image"><p style="font-size:13px;color:#64748b">QRIS akan dikirim admin lewat WhatsApp.</p></template>
+                  </div>
+                </div>
+                <div x-show="order.pay === 'transfer' || order.pay === 'qris'">
+                  <div class="pay-total"><span>Total yang dibayar</span><b>Rp <span x-text="fmt(orderGrandTotal)"></span></b></div>
+                  <label class="drop" data-testid="bukti-drop">
+                    <template x-if="!bukti"><span class="ic"><i class="fa-solid fa-camera"></i></span></template>
+                    <template x-if="bukti"><img :src="bukti" alt="Bukti" /></template>
+                    <span class="t"><span x-text="bukti ? 'Bukti terlampir ✓ (ketuk untuk ganti)' : 'Unggah foto bukti pembayaran'"></span><small x-text="on(s.bukti_wajib) ? 'Wajib sebelum pesan' : 'Opsional — bisa diunggah nanti di menu Pesanan Saya'"></small></span>
+                    <input type="file" accept="image/*" hidden @change="pickBukti($event)" data-testid="bukti-input" />
+                  </label>
+                </div>
+                <div class="note-box" x-show="order.pay === 'kasir'"><i class="fa-solid fa-cash-register"></i>Bayar di kasir saat makan/ambil pesanan.</div>
+                <div class="note-box" x-show="order.pay === 'cod'"><i class="fa-solid fa-money-bill-wave"></i>Siapkan uang pas, bayar ke kurir saat pesanan tiba.</div>
+              </div>
+
+              <!-- 5. Catatan -->
+              <div class="ck-sec">
+                <div class="ck-h"><span class="n">5</span>Catatan <span class="opt">opsional</span></div>
+                <div class="field" style="margin-top:8px"><textarea rows="2" placeholder="cth: alat makan tidak perlu, sambal dipisah" x-model="order.note" data-testid="order-note"></textarea></div>
+              </div>
+
+              <div class="summary">
+                <div class="summary-row"><span>Subtotal</span><span>Rp <span x-text="fmt(orderSubtotal)"></span></span></div>
+                <div class="summary-row" x-show="order.service === 'delivery'"><span>Ongkir</span><span x-text="shipFree ? 'Gratis' : 'Rp ' + fmt(shippingFee)"></span></div>
+                <div class="summary-row" x-show="taxPct > 0"><span x-text="'Pajak & Layanan (' + taxPct + '%)'"></span><span>Rp <span x-text="fmt(orderTax)"></span></span></div>
+                <div class="summary-row total"><span>Total</span><span>Rp <span x-text="fmt(orderGrandTotal)" data-testid="grand-total"></span></span></div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="mf-total"><small>Total</small><b>Rp <span x-text="fmt(orderGrandTotal)"></span></b></div>
+              <button class="btn-primary btn-full" @click="placeOrder()" :disabled="sending" data-testid="place-order-btn"><i :class="sending ? 'fa-solid fa-spinner spin' : 'fa-solid fa-paper-plane'"></i> <span x-text="sending ? 'Mengirim…' : 'Buat Pesanan'"></span></button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ============ MODAL: ORDER SUCCESS ============ -->
+      <template x-if="successOpen">
+        <div class="modal-overlay fade-enter" data-lenis-prevent @click.self="successOpen = false" data-testid="success-modal" role="dialog" aria-modal="true">
+          <div class="modal sheet-enter" style="max-width:460px">
+            <div class="modal-body" style="text-align:center;padding:36px 24px">
+              <div class="ok-badge"><i class="fa-solid fa-check"></i></div>
+              <h3 class="modal-title" style="margin-top:20px">Pesanan Diterima!</h3>
+              <p class="modal-desc">Terima kasih, <b x-text="lastOrder.name"></b>. Simpan kode pesanan Anda:</p>
+              <div class="code-pill" data-testid="order-code"><i class="fa-solid fa-receipt"></i><span x-text="lastOrder.id"></span></div>
+              <div class="summary" style="text-align:left;margin-top:20px">
+                <div class="summary-row"><span>Layanan</span><span x-text="serviceLabel(lastOrder.service) + (lastOrder.meja ? ' · Meja ' + lastOrder.meja : '') + (lastOrder.waktuAmbil && lastOrder.service === 'takeaway' ? ' · ' + lastOrder.waktuAmbil : '')"></span></div>
+                <div class="summary-row"><span>Pembayaran</span><span x-text="payLabel(lastOrder.pay)"></span></div>
+                <div class="summary-row" x-show="lastOrder.statusBayar"><span>Status bayar</span><span x-text="lastOrder.statusBayar"></span></div>
+                <div class="summary-row" x-show="lastOrder.estimasi"><span>Estimasi</span><span x-text="'±' + lastOrder.estimasi + ' menit'"></span></div>
+                <div class="summary-row total"><span>Total</span><span>Rp <span x-text="fmt(lastOrder.total)"></span></span></div>
+              </div>
+              <template x-if="lastOrder.pay === 'transfer' && lastOrder.statusBayar !== 'Menunggu verifikasi'">
+                <div style="text-align:left"><template x-for="(r, ri) in rekening" :key="'sr' + ri"><div class="rek"><div class="bank" x-text="r.bank"></div><div class="m"><div class="no" x-text="r.nomor"></div><div class="an" x-text="'a.n. ' + r.nama"></div></div><button class="btn-soft sm" @click="copy(r.nomor)">Salin</button></div></template></div>
+              </template>
+              <p class="sync-note err" x-show="lastOrder.offline"><i class="fa-solid fa-triangle-exclamation"></i> Mode contoh: pesanan belum tercatat di sistem.</p>
+              <div class="btn-col">
+                <a class="btn-primary btn-full btn-wa" style="justify-content:center" :href="lastOrder.waUrl" target="_blank" rel="noopener" data-testid="wa-send"><i class="fa-brands fa-whatsapp"></i> Kirim detail ke WhatsApp Resto</a>
+                <button class="btn-soft" style="height:50px" x-show="!lastOrder.offline" @click="successOpen = false; openMyOrders()" data-testid="track-btn"><i class="fa-solid fa-location-arrow"></i> Lacak pesanan</button>
+                <button class="btn-soft" style="height:44px;border:none;background:none" @click="successOpen = false" data-testid="success-close">Tutup</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ============ MODAL: ABOUT ============ -->
+      <template x-if="aboutOpen">
+        <div class="modal-overlay fade-enter" data-lenis-prevent @click.self="aboutOpen = false" data-testid="about-modal" role="dialog" aria-modal="true">
+          <div class="modal sheet-enter">
+            <div class="modal-drag"></div>
+            <button class="modal-close" @click="aboutOpen = false" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-hero">
+              <img :src="s.about_img" :alt="s.about_title" @error="imgFallback($event)" />
+              <div class="mh-title"><h3 x-text="s.about_title"></h3></div>
+            </div>
+            <div class="modal-body">
+              <p class="modal-desc" style="font-size:15px;line-height:1.7" x-text="s.about_desc"></p>
+              <div class="opt-group">
+                <template x-for="(pt, pi) in split(s.about_points)" :key="'ap' + pi">
+                  <div class="opt" style="cursor:default"><div class="opt-left"><span class="opt-check" style="background:var(--primary-deep);border-color:var(--primary-deep)"><i :class="['fa-solid fa-leaf','fa-solid fa-fire-burner','fa-solid fa-motorcycle','fa-solid fa-star'][pi % 4]"></i></span><span class="opt-name" x-text="pt"></span></div></div>
+                </template>
+              </div>
+              <div class="field">
+                <label><i class="fa-solid fa-location-dot" style="color:var(--accent)"></i> Alamat</label>
+                <div style="color:#64748b;font-size:14px" x-text="s.address + ' — Buka ' + s.hours"></div>
+              </div>
+              <button class="btn-primary btn-full" style="margin-top:20px" @click="aboutOpen = false; scrollTo('#menu')"><i class="fa-solid fa-bowl-food"></i> Mulai Pesan</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ============ MODAL: RESERVASI ============ -->
+      <template x-if="resvOpen">
+        <div class="modal-overlay fade-enter" data-lenis-prevent @click.self="resvOpen = false" data-testid="resv-modal" role="dialog" aria-modal="true">
+          <div class="modal sheet-enter">
+            <div class="modal-drag"></div>
+            <button class="modal-close" @click="resvOpen = false" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            <template x-if="!resvDone">
+              <div class="modal-body">
+                <span class="eyebrow">Reservasi Meja</span>
+                <h3 class="modal-title" style="margin-top:10px">Pesan Meja</h3>
+                <div class="ck-sec">
+                  <div class="ck-h"><span class="n">1</span>Jumlah tamu</div>
+                  <div class="stepper"><div class="qty"><button @click="resv.orang = Math.max(1, resv.orang - 1); loadSlots()" aria-label="Kurangi"><i class="fa-solid fa-minus"></i></button><span x-text="resv.orang" data-testid="resv-orang"></span><button @click="resv.orang = Math.min(Number(s.reservasi_maks_orang) || 20, resv.orang + 1); loadSlots()" aria-label="Tambah"><i class="fa-solid fa-plus"></i></button></div><span style="color:#64748b;font-size:14px">orang</span></div>
+                </div>
+                <div class="ck-sec">
+                  <div class="ck-h"><span class="n">2</span>Tanggal</div>
+                  <div class="date-chips">
+                    <template x-for="d in resvDates" :key="d.v"><button class="pick" :class="{ 'on': resv.tanggal === d.v }" @click="resv.tanggal = d.v; loadSlots()" :disabled="d.libur" :data-testid="'rd-' + d.v"><small x-text="d.h"></small><b x-text="d.t"></b><small x-text="d.b"></small></button></template>
+                  </div>
+                  <div class="field" style="margin-top:6px"><label for="resvDate" style="font-weight:500;color:#64748b">Atau pilih tanggal lain</label><input id="resvDate" type="date" :min="resvDates[0] && resvDates[0].v" :max="resvMaxDate" x-model="resv.tanggal" @change="loadSlots()" /></div>
+                </div>
+                <div class="ck-sec">
+                  <div class="ck-h"><span class="n">3</span>Jam kedatangan</div>
+                  <p class="map-hint" x-show="slotsLoading"><i class="fa-solid fa-spinner fa-spin"></i> Memuat jam tersedia…</p>
+                  <p class="map-hint" style="color:#b91c1c" x-show="!slotsLoading && slotMsg" x-text="slotMsg"></p>
+                  <div class="slot-grid" data-testid="slot-grid">
+                    <template x-for="sl in slots" :key="'sl' + sl.jam"><button class="pick" :class="{ 'on': resv.jam === sl.jam }" :disabled="!sl.cukup" @click="resv.jam = sl.jam"><b x-text="sl.jam"></b><small x-text="sl.cukup ? 'tersedia' : 'penuh'"></small></button></template>
+                  </div>
+                </div>
+                <div class="ck-sec">
+                  <div class="ck-h"><span class="n">4</span>Data & preferensi</div>
+                  <div class="field"><label>Area <span style="font-weight:400;color:#94a3b8">(opsional)</span></label><div class="chip-row" style="margin-top:0"><button class="pick" :class="{ 'on': !resv.area }" @click="resv.area = ''">Bebas</button><template x-for="ar in areas" :key="'ar' + ar"><button class="pick" :class="{ 'on': resv.area === ar }" @click="resv.area = ar" x-text="ar"></button></template></div></div>
+                  <div class="field"><label for="rvName">Nama <span class="req">*</span></label><input id="rvName" x-model="resv.name" :class="{ 'err': rvErr.name }" placeholder="Nama pemesan" data-testid="resv-name" /></div>
+                  <div class="field"><label for="rvPhone">No. WhatsApp <span class="req">*</span></label><input id="rvPhone" type="tel" inputmode="tel" x-model="resv.phone" :class="{ 'err': rvErr.phone }" placeholder="0812…" data-testid="resv-phone" /></div>
+                  <div class="field"><label for="rvNote">Catatan</label><textarea id="rvNote" rows="2" x-model="resv.note" placeholder="cth: ulang tahun, kursi bayi"></textarea></div>
+                  <div class="note-box" x-show="s.reservasi_info"><i class="fa-solid fa-circle-info"></i><span x-text="s.reservasi_info"></span></div>
+                </div>
+              </div>
+            </template>
+            <template x-if="!resvDone">
+              <div class="modal-foot">
+                <div class="mf-total"><small x-text="resv.jam ? fmtTgl(resv.tanggal) : 'Pilih jam'"></small><b x-text="resv.jam ? resv.jam + ' · ' + resv.orang + ' org' : '—'"></b></div>
+                <button class="btn-primary btn-full" @click="submitResv()" :disabled="sending" data-testid="resv-submit"><i :class="sending ? 'fa-solid fa-spinner spin' : 'fa-solid fa-calendar-check'"></i> <span x-text="sending ? 'Mengirim…' : 'Kirim Reservasi'"></span></button>
+              </div>
+            </template>
+            <template x-if="resvDone">
+              <div class="modal-body" style="text-align:center;padding:36px 24px" data-testid="resv-done">
+                <div class="ok-badge"><i class="fa-solid fa-calendar-check"></i></div>
+                <h3 class="modal-title" style="margin-top:20px">Reservasi Terkirim</h3>
+                <p class="modal-desc">Kami akan mengonfirmasi lewat WhatsApp. Kode reservasi:</p>
+                <div class="code-pill"><i class="fa-solid fa-ticket"></i><span x-text="resvDone.id"></span></div>
+                <div class="summary" style="text-align:left;margin-top:18px">
+                  <div class="summary-row"><span>Tanggal</span><span x-text="fmtTgl(resvDone.tanggal)"></span></div>
+                  <div class="summary-row"><span>Jam</span><span x-text="resvDone.jam"></span></div>
+                  <div class="summary-row"><span>Tamu</span><span x-text="resvDone.orang + ' orang'"></span></div>
+                  <div class="summary-row total"><span>Status</span><span>Menunggu konfirmasi</span></div>
+                </div>
+                <div class="btn-col"><a class="btn-primary btn-full btn-wa" style="justify-content:center" :href="resvDone.waUrl" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Kabari resto via WhatsApp</a><button class="btn-soft" style="height:48px" @click="resvOpen = false">Selesai</button></div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- ============ MODAL: PESANAN SAYA ============ -->
+      <template x-if="myOpen">
+        <div class="modal-overlay fade-enter" data-lenis-prevent @click.self="myOpen = false" data-testid="my-modal" role="dialog" aria-modal="true">
+          <div class="modal sheet-enter">
+            <div class="modal-drag"></div>
+            <button class="modal-close" @click="myOpen = false" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-body">
+              <span class="eyebrow">Riwayat di perangkat ini</span>
+              <h3 class="modal-title" style="margin-top:10px">Pesanan Saya</h3>
+              <div class="tabs2"><button :class="{ 'on': myTab === 'order' }" @click="myTab = 'order'">Pesanan</button><button :class="{ 'on': myTab === 'resv' }" @click="myTab = 'resv'">Reservasi</button></div>
+              <p class="map-hint" x-show="myLoading"><i class="fa-solid fa-spinner fa-spin"></i> Memperbarui status…</p>
+              <div x-show="myTab === 'order'">
+                <template x-if="!myOrders.length"><div class="empty-cart"><i class="fa-solid fa-receipt"></i><p>Belum ada pesanan di perangkat ini.</p></div></template>
+                <template x-for="o in myOrders" :key="'mo' + o.id">
+                  <div class="mo" :data-testid="'mo-' + o.id">
+                    <div class="mo-h"><div><b x-text="'#' + o.id"></b><small x-text="fmtWaktu(o.waktu) + ' · ' + serviceLabel(o.layanan || o.service)"></small></div><span class="st-badge" :class="badgeCls(o.status)" x-text="o.status || 'Menunggu'"></span></div>
+                    <div class="mo-items" x-text="(o.items || []).map(i => i.qty + '× ' + (i.name)).join(', ')"></div>
+                    <div class="steps" x-show="o.status !== 'Batal'"><template x-for="(st, si) in ['Menunggu','Diproses','Siap','Selesai']" :key="o.id + st"><div :class="{ 'on': stepIdx(o.status) >= si }" x-text="st === 'Siap' && (o.layanan === 'delivery') ? 'Diantar' : st"></div></template></div>
+                    <div class="mo-h" style="margin-top:12px;align-items:center"><span style="font-size:13px;color:#64748b">Total <b style="color:var(--dark)" x-text="'Rp ' + fmt(o.total)"></b></span><span class="st-badge" :class="badgeCls(o.statusBayar)" x-show="o.statusBayar" x-text="o.statusBayar"></span></div>
+                    <p class="map-hint" x-show="o.catatanAdmin" x-text="'Catatan resto: ' + o.catatanAdmin"></p>
+                    <div class="mo-acts">
+                      <label class="btn-soft sm" x-show="(o.pembayaran === 'transfer' || o.pembayaran === 'qris') && (o.statusBayar === 'Belum bayar' || o.statusBayar === 'Ditolak')"><i class="fa-solid fa-upload"></i> Unggah bukti bayar<input type="file" accept="image/*" hidden @change="uploadBuktiLater(o, $event)" /></label>
+                      <a class="btn-soft sm" :href="waLink('Halo, saya ingin menanyakan pesanan #' + o.id)" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Tanya resto</a>
+                      <button class="btn-soft sm" @click="forgetMine('order', o.id)" aria-label="Hapus dari daftar"><i class="fa-regular fa-trash-can"></i></button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+              <div x-show="myTab === 'resv'">
+                <template x-if="!myResv.length"><div class="empty-cart"><i class="fa-solid fa-calendar"></i><p>Belum ada reservasi di perangkat ini.</p><button class="btn-primary" style="margin-top:14px" @click="myOpen = false; openResv()">Reservasi meja</button></div></template>
+                <template x-for="r in myResv" :key="'mr' + r.id">
+                  <div class="mo">
+                    <div class="mo-h"><div><b x-text="'#' + r.id"></b><small x-text="fmtTgl(r.tanggal) + ' · ' + r.jam + ' · ' + r.orang + ' orang'"></small></div><span class="st-badge" :class="badgeCls(r.status)" x-text="r.status"></span></div>
+                    <p class="map-hint" x-show="r.meja" x-text="'Meja: ' + r.meja"></p>
+                    <p class="map-hint" x-show="r.catatanAdmin" x-text="'Catatan resto: ' + r.catatanAdmin"></p>
+                    <div class="mo-acts"><a class="btn-soft sm" :href="waLink('Halo, saya ingin menanyakan reservasi #' + r.id)" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Tanya resto</a><button class="btn-soft sm" @click="forgetMine('resv', r.id)" aria-label="Hapus dari daftar"><i class="fa-regular fa-trash-can"></i></button></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ============ TOASTS ============ -->
+      <div class="toast-wrap toasts" aria-live="polite">
+        <template x-for="t in toasts" :key="t.id">
+          <div class="toast" :class="t.type"><i :class="t.type === 'err' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check'"></i><span x-text="t.msg"></span></div>
+        </template>
+      </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/demo-data.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/toko.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
